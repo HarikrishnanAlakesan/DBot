@@ -62,6 +62,10 @@ def clean_universal_dataset(df):
                     continue
             except:
                 pass
+            # Force-check if column is actually numeric (stray strings cause object dtype)
+            converted = pd.to_numeric(df[col], errors='coerce')
+            if converted.notna().sum() > len(df) * 0.5:
+                df[col] = converted
         if df[col].isnull().sum() > 0:
             if df[col].dtype in [np.float64, np.int64]:
                 df[col] = df[col].fillna(df[col].median())
@@ -1020,7 +1024,9 @@ if st.session_state.active_mode == "Predict" and st.session_state.model_trained:
                     if st.session_state.df[f].dtype == 'O':
                         u_data[f] = st.selectbox(f, list(st.session_state.df[f].dropna().unique()), key=f"sel_{f}")
                     else:
-                        u_data[f] = st.number_input(f, value=float(st.session_state.df[f].mean()), key=f"num_{f}")
+                        safe_mean = pd.to_numeric(st.session_state.df[f], errors='coerce').mean()
+                        default_val = float(safe_mean) if pd.notna(safe_mean) else 0.0
+                        u_data[f] = st.number_input(f, value=default_val, key=f"num_{f}")
             submitted = st.form_submit_button("🚀 Run Diagnostic Prediction")
 
         if submitted:
